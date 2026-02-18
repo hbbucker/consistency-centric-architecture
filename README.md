@@ -220,7 +220,30 @@ Do ponto de vista técnico, a modelagem de uma SAGA orquestrada exige explicita�
 
 No cenário da frente de caixa, o fluxo poderia ser modelado da seguinte forma (figura 1): o orquestrador inicia criando a entidade Venda em estado "EM_ABERTO". Em seguida, dispara comandos para o serviço de Item de Venda registrar cada item e reservar estoque. Caso a reserva falhe, executa a compensação — remoção dos itens e marcação da venda como cancelada. Se os itens forem registrados com sucesso, o próximo passo é solicitar o Pagamento. Se o pagamento for negado, a compensação envolve liberar estoque e cancelar a venda. Se autorizado, a SAGA transita para Finalização, consolidando a venda como concluída. O Cancelamento é modelado como uma transição alternativa, acionada por falha ou ação do operador, que executa compensações idempotentes nos serviços já envolvidos.
 
-![Figura 1 — Fluxograma da SAGA Orquestrada](https://i.postimg.cc/7L8XWWK0/figura1.png)Figura 1 — Fluxograma da SAGA Orquestrada
+```mermaid
+flowchart TB
+    A(["Início SAGA"]) --> B["Criar Venda<br>estado = EM_ABERTO"]
+    B --> C["Registrar Itens<br>e Reservar Estoque"]
+    C -- Falha na Reserva --> D["Compensação:<br>Remover Itens"]
+    D --> E["Marcar Venda como CANCELADA"]
+    E --> F(["Fim - Venda Cancelada"])
+    C -- Sucesso --> G["Solicitar Pagamento"]
+    G -- Pagamento Negado --> H["Compensação:<br>Liberar Estoque"]
+    H --> I["Cancelar Venda"]
+    I --> F
+    G -- Pagamento Autorizado --> J["Finalizar Venda"]
+    J --> K["Marcar Venda como CONCLUÍDA"]
+    K --> L(["Fim - Venda Finalizada"])
+    B -- Cancelamento Operador --> M["Executar Compensações Idempotentes"]
+    C -- Cancelamento Operador --> M
+    G -- Cancelamento Operador --> M
+    M --> E
+
+    B@{ shape: diam}
+    C@{ shape: diam}
+    G@{ shape: diam}
+```
+Figura 1 — Fluxograma da SAGA Orquestrada
 
 Do ponto de vista de implementação, há decisões relevantes: comunicação síncrona (HTTP/gRPC) ou assíncrona (mensageria como Kafka ou RabbitMQ), armazenamento do estado da SAGA em banco relacional ou event store, controle de idempotência por chave natural ou identificador global de transação, e uso de padrões como Outbox para garantir atomicidade entre escrita de banco e publicação de eventos. Em ambientes de alta escala, a orquestração tende a ser implementada como um serviço dedicado, com persistência transacional e reprocessamento seguro, garantindo que falhas de infraestrutura não comprometam o fluxo de negócio.
 
