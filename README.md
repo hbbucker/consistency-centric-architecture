@@ -1,7 +1,7 @@
-# Arquitetura Orientada a Consistência
+# Arquitetura centrada na consistência/Consistency-Centric Architecture
 — Hugo Bastos Bucker
 
-Arquitetura Orientada à Consistência é uma abordagem que coloca a preservação de invariantes e a modelagem explícita de falhas como eixo central da estrutura do sistema. Nosso objetivo principal é criar uma arquitetura robusta, unificando as melhores práticas de mercado, sem distinção ou evangelização, de forma pragmática utilizando o melhor dos mundos.
+Arquitetura Centrada na Consistência é uma abordagem que coloca a preservação de invariantes e a modelagem explícita de falhas como eixo central da estrutura do sistema. Arquitetura deveria ser pensada a partir da consistência como prioridade epistemológica, unificando as melhores práticas de mercado, sem distinção ou evangelização, de forma pragmática utilizando o melhor dos mundos.
 
 * * *
 
@@ -132,7 +132,7 @@ Aqui o Aggregate Root se torna a fronteira de consistência, conforme descrito p
 
 ## A ilusão revelada
 
-CRUD cria a ilusão de que manipular dados é suficiente para representar um sistema, mas sistemas transacionais reais não falham por falta de endpoints, eles falham por falta de modelagem de consistência, quando a venda pode ser finalizada sem pagamento, o problema não é um bug isolado; é ausência de arquitetura. Quando uma autorização ocorre e o estado não é persistido corretamente, o problema não é apenas de infraestrutura, é ausência de coordenação transacional explícita, quando dois operadores finalizam simultaneamente a mesma venda, o problema não é concorrência acidental, é ausência de fronteira de consistência. 
+CRUD cria a ilusão de que manipular dados é suficiente para representar um sistema, mas sistemas transacionais reais não falham por falta de endpoints, eles falham por falta de modelagem de consistência, quando a venda pode ser finalizada sem pagamento, o problema não é um bug isolado. Quando uma autorização ocorre e o estado não é persistido corretamente, o problema não é apenas de infraestrutura, é ausência de coordenação transacional explícita, quando dois operadores finalizam simultaneamente a mesma venda, o problema não é concorrência acidental, é ausência de fronteira de consistência. 
 
 Arquitetura existe para antecipar essas falhas antes que elas se tornem prejuízo.
 
@@ -146,6 +146,8 @@ Essa abordagem se ancora em três pilares conceituais:
 * **Transações distribuídas e Sagas** — Garcia-Molina & Salem (1987)
 
 Todos convergem para a mesma conclusão: **_Sistemas confiáveis são aqueles cuja arquitetura protege a consistência como propriedade estrutural._**
+
+A arquitetura centrada na consistência não é um novo estilo arquitetônico. É uma lente de tomada de decisão.
 
 No nosso exemplo, a frente de caixa não é um conjunto de tabelas, é um sistema que manipula dinheiro, estoque e obrigações fiscais, e isso se aplica a centenas de milhares de outros cenários reais.
 
@@ -293,7 +295,105 @@ Teoricamente, o CAP delimita o espaço de possibilidades formais. Na prática, e
 [^3]: é um critério de consistência em sistemas distribuídos. Em termos simples, um sistema linearizável é aquele no qual as operações parecem ocorrer em uma única ordem global, coerente com o tempo real. É como se todas as ações fossem registradas em uma linha do tempo impecável, sem inversões estranhas.
 [^4]: significa que uma transação só é considerada confirmada (commit efetivo) quando um número mínimo de réplicas concorda e persiste aquela operação. Enquanto esse número mínimo — o quorum — não for atingido, o nó coordenador não responde sucesso ao cliente. Ele espera. Se não conseguir atingir o quorum (por exemplo, devido a uma partição de rede), o commit é negado ou fica pendente.
 
-## 2. Arquitetura de Software como Estrutura de Decisão
+
+Excelente.
+Vou traduzir mantendo rigor conceitual e incorporar citações clássicas e pertinentes (Lamport, Brewer, Vogels, Evans, Garcia-Molina & Salem), usando formato acadêmico simples com referências numeradas.
+
+# 2. Três Camadas da Consistência
+
+Consistência é frequentemente tratada como uma única preocupação técnica, normalmente associada a sistemas distribuídos e estratégias de replicação. No entanto, em sistemas complexos, “consistência” opera em três camadas conceitualmente distintas. Não diferenciá-las gera confusão epistemológica e decisões arquiteturais equivocadas.
+
+Essas camadas são: **Modelo de Consistência**, **Consistência de Domínio** e **Consistência Arquitetural**. Elas se relacionam, mas não são intercambiáveis.
+
+## 2.1 Modelo de Consistência (Camada Formal)
+
+Um modelo de consistência pertence ao campo da teoria de sistemas distribuídos. Ele responde a uma pergunta formal e precisa:
+
+> Sob quais condições uma leitura pode observar uma escrita?
+
+Consistência forte, sequencial, causal e eventual definem garantias sobre ordenação, visibilidade e propagação de estado entre nós distribuídos (Lamport, 1979 e Vogels, 2009).
+
+Essa camada trata de:
+
+* Replicação
+* Concorrência
+* Partições de rede
+* Trade-offs entre latência e disponibilidade: CAP (Brewer, 2000), PACELC (Abadi, 2012)
+
+Ela é de natureza matemática. Não compreende regras de negócio. Não raciocina sobre validade semântica.
+
+Um sistema pode ser fortemente consistente do ponto de vista distribuído e, ainda assim, estar incorreto do ponto de vista de negócio.
+
+Modelos de consistência governam **como o estado converge**, não **se o estado é verdadeiro**.
+
+## 2.2 Consistência de Domínio (Camada Semântica)
+
+A consistência de domínio opera em outro plano. Ela responde a uma pergunta semântica:
+
+> O estado atual viola alguma invariante fundamental do negócio?
+
+Aqui, consistência não diz respeito ao tempo de propagação, mas à verdade.
+
+Invariantes de domínio definem estados válidos do sistema, como descrito na modelagem orientada ao domínio (Evans, 2003).
+
+Exemplos:
+
+* O estoque nunca pode ser negativo.
+* Um pedido cancelado não pode receber pagamento.
+* O total da venda deve ser igual à soma de seus itens.
+
+Essas regras expressam restrições semânticas permanentes.
+
+Um sistema pode satisfazer perfeitamente um modelo formal de consistência e, simultaneamente, violar uma invariante crítica do domínio. Nesse caso, ele é tecnicamente consistente, mas semanticamente inválido.
+
+Consistência de domínio define correção. É o ponto onde a realidade do negócio encontra o estado do sistema.
+
+## 2.3 Consistência Arquitetural (Camada Estrutural)
+
+Consistência arquitetural é a resposta estrutural às invariantes do domínio.
+
+Ela responde à pergunta de design:
+
+> O sistema foi estruturado para proteger suas invariantes sob falhas, concorrência e distribuição?
+
+Essa camada envolve decisões como:
+
+* Delimitação de fronteiras transacionais
+* Definição de agregados
+* Escolha entre ACID e consistência eventual
+* Uso de Sagas e ações compensatórias - (Garcia-Molina & Salem, 1987)
+* Estratégias de isolamento
+* Validação dentro de boundaries de consistência
+
+Consistência arquitetural não é um novo modelo formal. É o alinhamento deliberado entre estrutura do sistema e preservação de verdade semântica.
+
+Se a consistência de domínio define o que nunca pode ser violado, a consistência arquitetural define como o sistema impede essa violação.
+
+## 2.4 A Hierarquia das Camadas
+
+Essas camadas formam uma hierarquia lógica:
+
+1. Invariantes de domínio definem verdade.
+2. Modelos de consistência definem garantias de propagação.
+3. Arquitetura define mecanismos de proteção.
+
+Um erro recorrente no design de sistemas é escolher um modelo de consistência antes de identificar invariantes críticas. Outro erro é supor que consistência forte implica correção de negócio.
+
+Consistência no nível de infraestrutura não implica consistência no nível semântico.
+
+Maturidade arquitetural começa quando sistemas são projetados a partir de invariantes, e não a partir de estratégias de replicação.
+
+## 2.5 Esclarecimento Final
+
+Pensar de forma centrada na consistência não significa propor um novo modelo formal de consistência distribuída. Não redefine o Teorema de CAP. Não introduz um novo protocolo transacional. Propõe uma ordem disciplinada de raciocínio:
+
+1. Definir o que deve ser sempre verdadeiro.
+2. Compreender as garantias de propagação necessárias.
+3. Estruturar a arquitetura para proteger essas verdades.
+
+Somente quando essas três camadas são explicitamente diferenciadas a consistência deixa de ser uma propriedade acidental e passa a ser um princípio deliberado de design.
+
+## 3. Arquitetura de Software como Estrutura de Decisão
 
 Arquitetura de software é a disciplina que define a organização estrutural de um sistema para preservar sua evolução e proteger suas regras de negócio.
 
@@ -344,7 +444,7 @@ Contém:
 
 **_A Application coordena, o Domain decide._**
 
-# 3. Domínio e Linguagem Ubíqua
+# 4. Domínio e Linguagem Ubíqua
 O conceito de domínio foi formalizado por Eric Evans em _Domain-Driven Design_. Domínio é o conjunto de regras, conceitos e processos do negócio. Vamos adotar daqui pra frente o exemplo da frente de caixa iniciado lá nos primeiros tópicos desta nossa divagação, nesse contexto, o domínio envolve:
 
 *   Venda
@@ -361,7 +461,7 @@ Não envolve:
 
 Evans introduziu a noção de **linguagem ubíqua**: desenvolvedores e especialistas do negócio devem utilizar os mesmos termos. Se o operador diz "finalizar venda", o código deve conter `finalizar()` — não `updateStatus(3)`. Essa correspondência semântica reduz ambiguidade e aumenta clareza estrutural.
 
-# 4. Aggregate Root e Consistência Interna
+# 5. Aggregate Root e Consistência Interna
 
 Evans define **Aggregate** como um conjunto de objetos associados tratados como uma unidade para fins de consistência, o elemento central é o **Aggregate Root**.
 
@@ -443,7 +543,7 @@ Mas existem casos que realmente o modelo anêmico pode fazer sentido, evitando u
 
 A arquitetura suporta ambos, mas nunca misture as responsabilidades.
 
-## 4.2 Modelagem Orientada a Domínio
+## 5.2 Modelagem Orientada a Domínio
 Olhando para dentro do Domínio, vamos analisar a finalização de uma Venda, numa abordagem adequada temos o método `finalizar()` que é responsável por conhecer todos os processos e particularidades da regra.
 
 ```java
@@ -474,7 +574,7 @@ Seguindo nosso exemplo acima, na finalização de venda, entendemos que algumas 
 
 Essas regras residem no próprio **Aggregate Root**. Esse encapsulamento se relaciona com o princípio clássico de ocultação de informação discutido por David Parnas (1972).
 
-# 5. Casos de Uso como Orquestradores Internos
+# 6. Casos de Uso como Orquestradores Internos
 
 O conceito de Caso de Uso foi difundido por Ivar Jacobson. Casos de uso representam ações completas realizadas por um ator. Quebrar em casos de uso é uma forma de tornarmos mais clara a intenção e a responsabilidade. Por exemplo na frente de caixa:
 *   RegistrarItem
@@ -506,7 +606,7 @@ O conceito de Caso de Uso foi difundido por Ivar Jacobson. Casos de uso represen
 
 **O Caso de Uso coordena, mas não contém a regra central, a regra pertence ao domínio.**
 
-# 6. Transações Não São Infraestrutura
+# 7. Transações Não São Infraestrutura
 
 A fronteira transacional deve refletir uma semântica de negócio. A infraestrutura implementa o mecanismo, a Application define a fronteira, desta forma não temos acoplamento da tecnologia às regras do negócio.
 
@@ -515,7 +615,7 @@ A fronteira transacional deve refletir uma semântica de negócio. A infraestrut
 
 **O Adapter executa:** begin, commit ou rollback.
 
-# 7. Portas e Adaptadores
+# 8. Portas e Adaptadores
 
 Proposta por Alistair Cockburn, a Arquitetura Hexagonal isola o núcleo do sistema por meio de interfaces (portas).
 
@@ -543,11 +643,11 @@ public class GatewayMock implements PaymentGateway {...}
 
 Entenda que, neste ponto, o domínio depende da abstração (interface), não da tecnologia, a tecnologia deve ser vista com um detalhe que deve ser postergado ao máximo na sua decisão, pois o Domínio, a Regra do Negócio não deve depender da sua implementação concreta.
 
-# 8. Consistência Distribuída
+# 9. Consistência Distribuída
 
 Em arquiteturas distribuídas baseadas em desacoplamento assíncrono, a consistência eventual tende a emergir como propriedade estrutural. Portanto mitigar problemas de consistência é essencial.
 
-## 8.1 Transação ACID Tradicional
+## 9.1 Transação ACID Tradicional
 
 Um modelo transacional de consistência forte, que implementa o ACID, funciona apenas quando a transação envolve um _resource manger_ único, onde a aplicação processa todo fluxo do início ao fim de forma síncrona.
 
@@ -559,7 +659,7 @@ BEGIN TRANSACTION
 COMMIT
 ```
 
-## 8.2 O SAGA Orquestrada
+## 9.2 O SAGA Orquestrada
 
 Como explicado anteriormente, O SAGA Orquestrado é uma solução elegante, onde cada etapa possui uma compensação, uma regra que desfaz a operação em caso de falha, permitindo restaurar a coerência por meio de compensações, desde que as compesações sejam corretamente modeladas.
 
@@ -579,7 +679,7 @@ Como explicado anteriormente, O SAGA Orquestrado é uma solução elegante, onde
  Pagamento
 ```
 
-## 8.3 Comparação Técnica
+## 9.3 Comparação Técnica
 
 A questão nem sempre é sobre escrever em pedra o que será utilizado, pois no ecossistema das aplicações, seja ela distribuída ou monolítica, é possível ter consistência forte e a consistência eventual implementadas, haverá fluxos em que a transação tradicional poderá ser usada, e outros em que não será possível, e tratar a consistência eventual da melhor forma possível trará tranquilidade e consistência para a aplicação como um todo, um exemplo simples é a comunicação com o gateway de pagamento, se tratado como consistência eventual, permitirá eficiência ao fluxo de pagamento.
 
@@ -593,20 +693,20 @@ A questão nem sempre é sobre escrever em pedra o que será utilizado, pois no 
 
 É importante refletir sobre qual é o fluxo da aplicação. Se o fluxo, por exemplo, não possui requisitos de escopo distribuído, pode ser um pouco exagerado utilizar o SAGA para resolver um problema que não existe.
 
-## 8.4 Interação entre SAGA e Aggregate
+## 9.4 Interação entre SAGA e Aggregate
 A SAGA não valida regra interna, por exemplo da Venda, ela apenas coordena passos distribuídos, se o Aggregate for mal modelado, a SAGA apenas amplifica inconsistências.
 
 Ponto central:
 * **Aggregate protege consistência interna.**
 * **SAGA coordena consistência externa.**
 
-# 9. Consistência Eventual na Prática
+# 10. Consistência Eventual na Prática
 
 Até aqui discutimos invariantes, fronteiras transacionais, SAGA e consistência eventual sob perspectiva estrutural. Agora é necessário deslocar a discussão para o terreno onde arquitetura realmente é testada: produção.
 
 Consistência eventual não é um conceito acadêmico abstrato. Ela se manifesta quando o sistema continua operando apesar de falhas parciais. A questão não é "se" haverá divergência temporária de estado — ela ocorrerá. A questão é: o sistema foi desenhado para absorvê-la de forma controlada?
 
-## 9.1 Aplicação Prática no Sistema de Frente de Caixa
+## 10.1 Aplicação Prática no Sistema de Frente de Caixa
 
 Considere novamente o fluxo de venda:
 
@@ -649,7 +749,7 @@ Se o ERP estiver indisponível:
 
 Sem idempotência, consistência eventual vira inconsistência permanente.
 
-## 9.2 Casos Reais
+## 10.2 Casos Reais
 
 A seguir, situações que ocorrem em produção — não em diagramas.
 
@@ -730,7 +830,7 @@ Em mensageria real, "exactly-once" é raramente garantido de ponta a ponta.
 * Processamento é idempotente.
 * Estado não se corrompe.
 
-## 9.3 Anti-Patterns de Consistência
+## 10.3 Anti-Patterns de Consistência
 
 Mais importante do que saber aplicar é saber o que evitar.
 
@@ -798,7 +898,7 @@ Use ACID tradicional.
 
 Aplicar SAGA onde não há distribuição real adiciona complexidade sem ganho estrutural.
 
-## 9.4 Maturidade Arquitetural
+## 10.4 Maturidade Arquitetural
 
 A diferença entre um sistema frágil e um sistema resiliente não está na ausência de falhas. Está na previsibilidade diante delas.
 
@@ -836,7 +936,7 @@ Ela se torna um mecanismo de resiliência. Sem esses elementos, ela se torna ape
 
 É isso que separa um CRUD distribuído de um sistema confiável.
 
-# 10. Idempotência e Confiabilidade
+# 11. Idempotência e Confiabilidade
 
 Em um sistema distribuído, mensagens podem ser entregues mais de uma vez, idempotência significa que múltiplas execuções produzem o mesmo efeito.
 
@@ -846,13 +946,13 @@ Isso pode ser feito por:
 *   Identificador único de transação.
 *   Registro de eventos processados.
 
-# 11. Modelagem de Falhas Reais
+# 12. Modelagem de Falhas Reais
 
 Projetar um sistema apenas para o "fluxo feliz" (happy path) é um erro comum em projetos iniciantes. Sistemas reais falham. Redes falham. Serviços externos ficam indisponíveis. Mensagens são duplicadas.
 
 Arquitetura orientada à consistência exige modelar explicitamente as falhas como parte do domínio operacional.
 
-## 11.1 Classificação das Falhas
+## 12.1 Classificação das Falhas
 No nosso exemplo da frente de caixa, podemos classificar falhas em quatro categorias:
 1. **Falhas de infraestrutura**
     *   Timeout no gateway de pagamento
@@ -871,7 +971,7 @@ No nosso exemplo da frente de caixa, podemos classificar falhas em quatro catego
 As falhas de domínio são tratadas pelo **Aggregate**.
 As falhas distribuídas são tratadas por **SAGA, idempotência e consistência eventual**.
 
-## 11.2 Falha 1 — Gateway Autoriza, mas Sistema Cai
+## 12.2 Falha 1 — Gateway Autoriza, mas Sistema Cai
 ### Cenário
 1. Sistema envia requisição ao gateway.
 2. Gateway autoriza pagamento.
@@ -897,7 +997,7 @@ Se o sistema cair após a autorização:
 
 Aqui, a SAGA assume papel de coordenação.
 
-## 11.3 Falha 2 — Mensagem Duplicada
+## 12.3 Falha 2 — Mensagem Duplicada
 ### Cenário
 O serviço de pagamento envia duas vezes o evento:
 
@@ -915,7 +1015,7 @@ Sem idempotência:
 *   Ignorar duplicatas.
 Isso implementa a propriedade formal de idempotência discutida em sistemas distribuídos.
 
-## 11.4 Falha 3 — ERP Indisponível
+## 12.4 Falha 3 — ERP Indisponível
 ### Cenário
 
 1. Venda finalizada.
@@ -935,7 +1035,7 @@ Isso exige:
 * Mecanismo de retry exponencial.
 * Monitoramento operacional.
 
-## 10.5 Falha 4 — Concorrência
+## 12.5 Falha 4 — Concorrência
 ### Cenário
 
 Dois operadores tentam finalizar a mesma venda simultaneamente. 
@@ -953,7 +1053,7 @@ estado == FINALIZADA → operação inválida
 
 Essa verificação pertence ao **Aggregate Root**.
 
-## 11.6 Estados Explícitos como Ferramenta de Robustez
+## 12.6 Estados Explícitos como Ferramenta de Robustez
 
 Uma técnica recomendada é modelar explicitamente estados intermediários:
 * ABERTA
@@ -964,7 +1064,7 @@ Uma técnica recomendada é modelar explicitamente estados intermediários:
 
 Estados explícitos tornam falhas visíveis e tratáveis, essa abordagem aproxima o modelo de uma máquina de estados finitos.
 
-# 12. Síntese da Arquitetura Orientada à Consistência
+# 13. Síntese da Arquitetura Orientada à Consistência
 
 A robustez de um sistema depende da integração coerente entre:
 * Modelagem explícita do domínio
@@ -992,7 +1092,7 @@ Vale ressaltar que a arquitetura não exclui a utilização de patterns, nem se 
 
 E transforma o que era um CRUD, intecional ou não, em um sistema resiliente, e mauteniível, capaz de expandir sem surpresas.
 
-# 13. Aplicação de patterns na arquitetura
+# 14. Aplicação de patterns na arquitetura
 
 Agora vou apresentar como a aplicação de patterns poderá atuar nas diferentes camadas da arquitetura.
 
@@ -1076,6 +1176,8 @@ Campo Grande, February 2026
 
 # Referências Bibliográficas
 
+ABADI, Daniel. _Consistency Tradeoffs in Modern Distributed Database System Design: CAP is Only Part of the Story (PACELC)_. IEEE Computer Society, 2012.
+
 BREWER, Eric A. _"Towards Robust Distributed Systems."_ _ACM Symposium on Principles of Distributed Computing_ (PODC), 2000.
 
 COCKBURN, Alistair. _Hexagonal Architecture_. 2005.
@@ -1101,6 +1203,8 @@ JACOBSON, Ivar; BOOCH, Grady; RUMBAUGH, James. _The Unified Software Development
 KLEPPMANN, Martin. _Designing Data-Intensive Applications._ O’Reilly, 2017.
 
 LAMPORT, Leslie. _Specifying Systems: The TLA+ Language and Tools for Hardware and Software Engineers._ Addison-Wesley, 2002.
+
+LAMPORT, Leslie. _How to Make a Multiprocessor Computer That Correctly Executes Multiprocess Programs_. IEEE Transactions on Computers, 1979.
 
 MARTIN, Robert C. _Clean Architecture: A Craftsman’s Guide to Software Structure and Design._ Boston: Prentice Hall, 2017.
 
