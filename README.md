@@ -1,4 +1,5 @@
 # Arquitetura Orientada a Consistência
+— Hugo Bastos Bucker
 
 Arquitetura Orientada à Consistência é uma abordagem que coloca a preservação de invariantes e a modelagem explícita de falhas como eixo central da estrutura do sistema. Nosso objetivo principal é criar uma arquitetura robusta, unificando as melhores práticas de mercado, sem distinção ou evangelização, de forma pragmática utilizando o melhor dos mundos.
 
@@ -1060,6 +1061,16 @@ Compensação:
 | Estado do fluxo | State Machine |
 | Consistência externa | Eventual Consistency |
 
+* * *
+
+### Author
+
+**Hugo Bastos Bucker**  
+Staff Software Engenieer at ANYMARKET Brasil  
+
+Campo Grande, February 2026
+
+🔗 LinkedIn: https://www.linkedin.com/in/hugo-bastos-bucker
 
 * * *
 
@@ -1104,3 +1115,4 @@ SOMMERVILLE, Ian. _Software Engineering._ 10. ed. Boston: Pearson, 2015.
 TANENBAUM, Andrew S.; VAN STEEN, Maarten. _Distributed Systems: Principles and Paradigms._
 
 VOGELS, Werner. _"Eventually Consistent." Communications of the ACM,_ v. 52, n. 1, 2009.
+
